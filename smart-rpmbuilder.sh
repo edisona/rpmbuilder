@@ -113,6 +113,8 @@ function usage() {
 	echo " rpm_username                 - Default 'tomcat'";
 	echo " rpm_groupname                - Default 'tomcat'";
 	echo " rpm_filemode                 - Default 644";
+	echo " rpm_requires                 - Capability and version that this package depends on";
+	echo " rpm_provides                 - Capability that this package provides";
 	echo "";
 }
 
@@ -293,6 +295,12 @@ function create_spec_file() {
 	echo "autoprov: yes" >> $RPM_SPEC_FILE
 	echo "autoreq: yes" >> $RPM_SPEC_FILE
 	echo "BuildRoot: $RPM_BUILDROOT" >> $RPM_SPEC_FILE
+	if [[ "${rpm_requires}" != "" ]]; then
+		echo "Requires: ${rpm_requires}" >> $RPM_SPEC_FILE
+	fi
+	if [[ "${rpm_provides}" != "" ]]; then
+		echo "Provides: ${rpm_provides}" >> $RPM_SPEC_FILE
+	fi
 	echo "" >> $RPM_SPEC_FILE
 	
 	echo "%description" >> $RPM_SPEC_FILE
@@ -402,14 +410,15 @@ function push_to_maven_repo() {
 	echo "Pushing RPM to Maven repo";
 	maven_package_release_version=${rpm_version}.${rpm_release}
 	maven_package_snapshot_version=${rpm_version}.${rpm_release}-SNAPSHOT
+	retries=3
 
 	# push to maven snapshot repo
 	echo "$MVN_CMD deploy:deploy-file -Dfile=${RPM_FILE} -DrepositoryId=${maven_snapshot_repo_id} -Durl=${maven_snapshot_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_snapshot_version} -Dclassifier=${maven_classifier}";
 	$MVN_CMD deploy:deploy-file -Dfile=${RPM_FILE} -DrepositoryId=${maven_snapshot_repo_id} -Durl=${maven_snapshot_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_snapshot_version} -Dclassifier=${maven_classifier}
 	
 	if [ "$1" == "--release" ]; then
-		echo "$MVN_CMD deploy:deploy-file -Dfile=${RPM_FILE} -DrepositoryId=${maven_release_repo_id} -Durl=${maven_release_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_release_version} -Dclassifier=${maven_classifier}";
-		$MVN_CMD deploy:deploy-file -Dfile=${RPM_FILE} -DrepositoryId=${maven_release_repo_id} -Durl=${maven_release_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_release_version} -Dclassifier=${maven_classifier}
+		echo "$MVN_CMD org.apache.maven.plugins:maven-deploy-plugin:2.7:deploy-file -DretryFailedDeploymentCount=${retries} -Dfile=${RPM_FILE} -DrepositoryId=${maven_release_repo_id} -Durl=${maven_release_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_release_version} -Dclassifier=${maven_classifier}";
+		$MVN_CMD org.apache.maven.plugins:maven-deploy-plugin:2.7:deploy-file -DretryFailedDeploymentCount=${retries} -Dfile=${RPM_FILE} -DrepositoryId=${maven_release_repo_id} -Durl=${maven_release_repo_url} -DgroupId=${maven_groupId} -DartifactId=${maven_artifactId} -Dpackaging=${maven_package_type} -Dversion=${maven_package_release_version} -Dclassifier=${maven_classifier}
 	fi
 }
 
